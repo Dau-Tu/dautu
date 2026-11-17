@@ -2167,6 +2167,8 @@ $('#tabs').addEventListener('pointerdown', e => {
     if (!x.link) { toast('Văn bản này chưa có link tệp trên trang tính.'); return; }
     const laThuMuc = /\/folders\//.test(x.link);
     if (laThuMuc || !x.fileId) { window.open(x.link, '_blank', 'noopener'); return; }
+    /* Điện thoại: mở thẳng link Drive để ứng dụng Google Drive (đã đăng nhập) hiển thị; khung xem nhúng trên điện thoại thường bị chặn đăng nhập */
+    if (matchMedia('(max-width: 900px), (pointer: coarse)').matches) { window.open('https://drive.google.com/file/d/' + x.fileId + '/view', '_blank', 'noopener'); return; }
     const mo = mkBtn('Mở trên Drive', () => window.open('https://drive.google.com/file/d/' + x.fileId + '/view', '_blank', 'noopener'), 'p');
     openModal((x.so || x.loai || 'Hồ sơ') + ' · ' + x.p.ten,
       '<div class="fillcol"><iframe src="https://drive.google.com/file/d/' + encodeURIComponent(x.fileId) + '/preview" style="flex:1;width:100%;min-height:60vh;border:0;border-radius:10px;background:var(--bg)" allow="autoplay" title="Xem tệp"></iframe><p class="note" style="margin:8px 0 0">Không xem được? Tài khoản Google đang đăng nhập trên trình duyệt cần được cấp quyền xem tệp trên Drive. Bấm "Mở trên Drive" để xem hoặc xin quyền.</p></div>',
@@ -2175,9 +2177,26 @@ $('#tabs').addEventListener('pointerdown', e => {
   chiaSeTep = function (x) {
     if (!x.link) { toast('Văn bản này chưa có link tệp.'); return; }
     const txt = [x.p.ten, (x.loai || '') + (x.so ? ' số ' + x.so : '') + (ngayVN(x) ? ' ngày ' + ngayVN(x) : ''), x.nd, x.link].filter(Boolean).join('\n');
-    openModal('Chia sẻ hồ sơ', '<p class="sub">Người nhận chỉ mở được tệp nếu tài khoản của họ đã được cấp quyền trên Drive.</p><textarea id="shTxt" style="margin-top:8px;min-height:130px" readonly>' + esc(txt) + '</textarea>',
-      { foot: [mkBtn(ic('copy') + 'Sao chép', () => { const t = $('#shTxt'); (navigator.clipboard ? navigator.clipboard.writeText(t.value) : Promise.reject()).then(() => toast('Đã sao chép nội dung chia sẻ.'), () => { t.select(); toast('Hãy bấm Ctrl+C để sao chép.'); }); }, 'p'),
-        mkBtn(ic('share') + 'Gửi qua ứng dụng khác', () => { if (navigator.share) navigator.share({ title: x.so || x.nd, text: txt }).catch(() => { }); else toast('Thiết bị này không có bảng chia sẻ, hãy dùng Sao chép.'); })] });
+    let tep = null;
+    const nutTep = mkBtn(ic('share') + '<span>Chia sẻ dạng tệp</span>', async () => {
+      if (tep) { // bước 2: đã có tệp, gửi qua Zalo, email… (cần bấm lần nữa vì trình duyệt chỉ cho mở bảng chia sẻ ngay sau khi bấm)
+        if (navigator.canShare && navigator.canShare({ files: [tep] })) { try { await navigator.share({ files: [tep], title: x.so || x.nd }); } catch (e) { if (e.name !== 'AbortError') toast('Không mở được bảng chia sẻ: ' + e.message); } }
+        else { await taiTep(tep, tep.name); toast('Thiết bị này không chia sẻ tệp trực tiếp được, tệp đã được tải về máy.'); }
+        return;
+      }
+      nutTep.disabled = true; nutTep.querySelector('span').textContent = 'Đang lấy tệp…';
+      try {
+        const r = await goi('layTep', x.fileId), bin = atob(r.b64), u8 = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) u8[k] = bin.charCodeAt(k);
+        tep = new File([u8], r.ten, { type: r.mime || 'application/octet-stream' });
+        nutTep.querySelector('span').textContent = 'Gửi tệp (' + (r.size < 1048576 ? Math.max(1, Math.round(r.size / 1024)) + ' KB' : (r.size / 1048576).toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + ' MB') + ')';
+      } catch (e) { toast(e.message.replace(/^[A-Z_]+:\s*/, '')); nutTep.querySelector('span').textContent = 'Chia sẻ dạng tệp'; }
+      nutTep.disabled = false;
+    }, 'p');
+    const dienThoai = matchMedia('(max-width: 900px), (pointer: coarse)').matches;
+    if (!dienThoai || !x.fileId || /\/folders\//.test(x.link)) nutTep.hidden = true; /* máy tính: chỉ chia sẻ link như cũ */
+    openModal('Chia sẻ hồ sơ', (dienThoai && !nutTep.hidden ? '<p class="sub">' + esc((x.so || x.loai || '') + ' · ' + x.nd) + '</p><p class="note" style="margin:6px 0 0"><b>Chia sẻ dạng tệp:</b> gửi chính tệp (tối đa 20 MB) qua Zalo, email… Người nhận mở được ngay, không cần quyền Drive. Chỉ dùng được khi tài khoản của anh/chị có quyền xem tệp này.<br><b>Chia sẻ link:</b> người nhận phải được cấp quyền trên Drive mới mở được.</p>' : '<p class="sub">Người nhận chỉ mở được tệp nếu tài khoản của họ đã được cấp quyền trên Drive.</p>') + '<textarea id="shTxt" style="margin-top:8px;min-height:110px" readonly>' + esc(txt) + '</textarea>',
+      { foot: [nutTep, mkBtn(ic('copy') + 'Sao chép link', () => { const t = $('#shTxt'); (navigator.clipboard ? navigator.clipboard.writeText(t.value) : Promise.reject()).then(() => toast('Đã sao chép nội dung và link.'), () => { t.select(); toast('Hãy bấm Ctrl+C để sao chép.'); }); }),
+        mkBtn('Gửi link', () => { if (navigator.share) navigator.share({ title: x.so || x.nd, text: txt }).catch(() => { }); else toast('Thiết bị này không có bảng chia sẻ, hãy dùng Sao chép link.'); })] });
   };
 
   /* ---------- Xuất bảng kê (CSV mở được bằng Excel) ---------- */

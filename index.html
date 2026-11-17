@@ -2068,15 +2068,15 @@ $('#tabs').addEventListener('pointerdown', e => {
 
 </script>
 <script>
-/* ================= CHẠY THẬT – ĐỢT 1 =================
- * Đăng nhập Google, lấy dữ liệu thật từ máy chủ Apps Script, xem hồ sơ trên Drive, chia sẻ link thật, xuất bảng kê.
- * Đợt 1 mở các tab: Tra cứu hồ sơ (mọi vai trò) và Lịch sử (quản lý). Các tab khác mở ở đợt sau.
+/* ================= CHẠY THẬT – ĐỢT 2 =================
+ * Đợt 1: đăng nhập, tra cứu, chia sẻ, xuất bảng kê. Đợt 2: xem tệp trên cổng, tải hồ sơ lên, sửa/duyệt/khôi phục, Tiến độ, Thống kê.
+ * Quản lý dự án và Quản lý chia sẻ mở ở đợt 3.
  */
 (function () {
   const CFG = window.LIVE_CFG || {}, B = window.BOOT || {};
   const GAS = typeof google !== 'undefined' && google.script && google.script.run;
-  const TAB_DOT1 = ['tracuu', 'lichsu'];
-  window.CHI_XEM = true;                                   // đợt 1: chưa sửa hồ sơ, chỉ xem và chia sẻ
+  const TAB_MO = ['tracuu', 'tiendo', 'thongke', 'tailen', 'lichsu', 'capnhat'];
+  const duocMo = v => TAB_MO.includes(v) && !(v === 'lichsu' && ROLE !== 'admin') && !(['tailen', 'capnhat'].includes(v) && ROLE === 'guest') && !(v === 'capnhat' && ROLE === 'leader');
   const NS = 'hsdt:', kho = {
     get: k => { try { return localStorage.getItem(NS + k); } catch (e) { return null; } },
     set: (k, v) => { try { v == null ? localStorage.removeItem(NS + k) : localStorage.setItem(NS + k, v); } catch (e) { } }
@@ -2159,28 +2159,74 @@ $('#tabs').addEventListener('pointerdown', e => {
   $('#congOut').onclick = () => dangXuat();
 
   /* ---------- Đổ dữ liệu thật vào giao diện ---------- */
+  const docTuDong = r => { let kem = {}; try { kem = r[15] ? JSON.parse(r[15]) : {}; } catch (e) { }
+    const plL = String(r[14] || '').split('\n').filter(Boolean).map(t => { const k = t.indexOf(' '); return { t: t.slice(0, k), link: t.slice(k + 1) }; });
+    const x = { id: r[13], p: PROJ[r[0]], loai: r[1], so: r[2], nd: r[3], d: r[4], m: r[5], y: r[6], cq: r[7], nk: r[8], gc: r[9], nhom: r[10], link: r[11], tenGoc: r[12], fileId: /\/folders\//.test(r[11]) ? '' : idTuLink(r[11]), pl: plL.map(p => p.t), plLinks: plL, kem, co: [] };
+    if (kem.anh) x.anh = kem.anh; if (/\.pptx?$/i.test(r[12] || '')) x.dc = 'pptx'; if (/\/folders\//.test(r[11])) x.thuMuc = idTuLink(r[11]);
+    danhCo(x); return x; };
+  function apTab(t) {
+    if (!t) return;
+    (t.duAn || []).forEach((p, i) => { if (!PROJ[i] || PROJ[i].ten !== p.ten) { /* dự án mới xuất hiện: tải lại cho chắc */ } });
+    const tien = String(t.sheetId) + ':';
+    for (let k = DOCS.length - 1; k >= 0; k--) if (String(DOCS[k].id).startsWith(tien)) DOCS.splice(k, 1);
+    t.docs.forEach(r => DOCS.push(docTuDong(r)));
+    sapDocs(); lamChiMuc(); napDanhSach(); loc();
+  }
   function apDung(d) {
     TOI = d.me; ROLE = d.me.role;
-    ADMINS = d.cfg.ADMINS; LEADERS = d.cfg.LEADERS; CB_DOM = d.cfg.CB_DOM; CANBO = d.cfg.CANBO;
+    ADMINS = d.cfg.ADMINS; LEADERS = d.cfg.LEADERS; CB_DOM = d.cfg.CB_DOM; CANBO = d.cfg.CANBO; EDITORS = d.tienDo || [];
     if (!ADMINS.includes(TOI.email) && ROLE === 'admin') ADMINS.push(TOI.email);
+    window.CHI_XEM = ROLE === 'guest';
     PROJ.length = 0;
     d.duAn.forEach((p, i) => PROJ.push({ id: 'p' + i, ten: p.ten, tinh: p.tinh, vung: p.vung, info: p.info || {}, duyet: false, pl: '', loai: [] }));
     FIELDS = (d.truong || []).map(k => ({ k, show: !/link|ghi chú nội bộ/i.test(k) }));
-    DOCS.length = 0;
-    d.docs.forEach(r => { const x = { id: r[13], p: PROJ[r[0]], loai: r[1], so: r[2], nd: r[3], d: r[4], m: r[5], y: r[6], cq: r[7], nk: r[8], gc: r[9], nhom: r[10], link: r[11], tenGoc: r[12], fileId: idTuLink(r[11]), pl: [], co: [] }; danhCo(x); DOCS.push(x); });
-    const loais = [...new Set(DOCS.map(x => x.loai).filter(Boolean))]; TYPES = [...TYPES.filter(t => loais.includes(t)), ...loais.filter(t => !TYPES.includes(t)).sort((a, b) => a.localeCompare(b, 'vi'))];
+    DOCS.length = 0; d.docs.forEach(r => DOCS.push(docTuDong(r)));
+    const tt = d.tt || {};
+    if (Array.isArray(tt.TYPES)) TYPES = tt.TYPES; if (Array.isArray(tt.PHAPLY)) PHAPLY = tt.PHAPLY;
+    const loais = [...new Set(DOCS.map(x => x.loai).filter(Boolean))]; TYPES = [...TYPES, ...loais.filter(t => !TYPES.includes(t)).sort((a, b) => a.localeCompare(b, 'vi'))];
     sapDocs(); lamChiMuc();
-    HIST.length = 0; (d.lichSu || []).forEach(r => HIST.push({ t: new Date(r[0]), em: r[1], tt: r[2], nd: r[3] }));
-    REQS.length = 0; SHARES.length = 0;
+    /* Thống kê: số liệu dự án đã chấp thuận NĐT */
+    Object.entries(tt.TK || {}).forEach(([ten, s]) => {
+      let p = PROJ.find(q => boDau(q.ten) === boDau(ten));
+      if (!p) { const pt = phanTichTenTab(ten); p = { id: 'k' + PROJ.length, ten, tinh: pt.tinh, vung: pt.vung, info: {}, loai: [], pl: '' }; PROJ.push(p); }
+      Object.assign(p, { duyet: true, qh: s.qh, bg: s.bg, nam: s.nam, ngayCT: s.ngayCT || '', loai: s.loai || [], pl: s.pl || '', statName: s.ten2 || p.ten.replace(/^.*? - /, '') });
+    });
+    if (Array.isArray(tt.TD)) TD.splice(0, TD.length, ...tt.TD);
+    /* Biểu đồ đã lưu, kiểu biểu đồ, bố cục, thứ tự menu */
+    $$('#charts>.panel').filter(p => /^chs/.test(p.id)).forEach(p => p.remove());
+    SAVED = Array.isArray(tt.SAVED) ? tt.SAVED : []; SAVED.forEach(taoPanelLuu);
+    KIEU = tt.KIEU || {};
+    if (Array.isArray(tt.BOCUC)) tt.BOCUC.forEach(([id, sp]) => { const p = $('#' + id); if (p) { p.dataset.span = sp; $('#charts').appendChild(p); } });
+    THU_TU_TAB = Array.isArray(tt.MENU) ? tt.MENU : THU_TU_TAB; apThuTuTab();
+    HIST.length = 0; (d.lichSu || []).forEach(r => { let kp = null; try { kp = r[4] ? JSON.parse(r[4]) : null; } catch (e) { } HIST.push({ t: new Date(r[0]), em: r[1], tt: r[2], nd: r[3], kp: kp && kp.loai ? kp : null, hangLS: r[5], daKP: !!r[6] }); });
+    REQS.length = 0; (d.reqs || []).forEach(q => REQS.push(yeuCauTuMayChu(q))); SHARES.length = 0;
     $('#role').value = ROLE; apVaiTro();
-    $$('nav.tabs a').forEach(a => { if (!TAB_DOT1.includes(a.dataset.v)) a.hidden = true; });
-    $('nav.tabs a[data-v=lichsu]').hidden = ROLE !== 'admin';
-    napDanhSach(); demLocChiTiet(); loc();
-    const v = location.hash.slice(1); if (!TAB_DOT1.includes(v) || (v === 'lichsu' && ROLE !== 'admin')) location.hash = '#tracuu'; else route();
+    $$('nav.tabs a').forEach(a => a.hidden = !duocMo(a.dataset.v));
+    napDanhSach(); demLocChiTiet(); khoiTaoTKFilter(); loc(); veBadge(); capNhatBoCuc();
+    ['TK', 'TD', 'SAVED', 'KIEU', 'BOCUC', 'MENU', 'TIENDO', 'TYPES', 'PHAPLY'].forEach(k => daGui[k] = JSON.stringify(giaTriTT(k)));
+    const v = location.hash.slice(1); if (!duocMo(v)) location.hash = '#tracuu'; else route();
     if (d.loi && d.loi.length) toast('Lưu ý dữ liệu: ' + d.loi.join(' · '));
     themMenuTaiKhoan(d.capNhat);
   }
-  addEventListener('hashchange', () => { const v = location.hash.slice(1); if (v && (!TAB_DOT1.includes(v) || (v === 'lichsu' && ROLE !== 'admin'))) location.hash = '#tracuu'; });
+  function yeuCauTuMayChu(q) {
+    const doi = {}; Object.entries(q.doi || {}).forEach(([k, v]) => doi[k] = k === 'p' ? [{ ten: v[0] }, { ten: v[1] }] : v);
+    return Object.assign({}, q, { t: new Date(q.t), doi, ver: q.ver ? (q.tenVer || 'phiên bản mới') : '', verId: q.ver, plIds: q.pl || [], pl: (q.pl || []).length });
+  }
+  /* ---------- Lưu trạng thái lên máy chủ (gom lại, chỉ gửi khi có thay đổi) ---------- */
+  const daGui = {}, hen = {};
+  function giaTriTT(k) {
+    if (k === 'TK') return Object.fromEntries(PROJ.filter(p => p.duyet).map(p => [p.ten, { qh: p.qh, bg: p.bg, nam: p.nam, ngayCT: p.ngayCT || '', loai: p.loai || [], pl: p.pl || '', ten2: p.statName || '' }]));
+    if (k === 'TD') return TD; if (k === 'SAVED') return SAVED; if (k === 'KIEU') return KIEU; if (k === 'MENU') return THU_TU_TAB;
+    if (k === 'BOCUC') return $$('#charts>.panel').map(p => [p.id, p.dataset.span]);
+    if (k === 'TIENDO') return EDITORS; if (k === 'TYPES') return TYPES; if (k === 'PHAPLY') return PHAPLY;
+  }
+  const MO_TA_TT = { TD: ['Cập nhật tiến độ', 'Bảng kê tiến độ'], TK: ['Sửa số liệu thống kê', 'Bảng chi tiết thống kê dự án'] };
+  window.__dongBo = k => {
+    clearTimeout(hen[k]);
+    hen[k] = setTimeout(() => { const v = giaTriTT(k), s = JSON.stringify(v); if (daGui[k] === s) return; const cu = daGui[k]; daGui[k] = s;
+      goi('luuTT', k, v, MO_TA_TT[k] || null).then(r => { if (r && r.hangLS && MO_TA_TT[k]) { HIST.unshift({ t: new Date(), em: TOI.email, tt: MO_TA_TT[k][0], nd: MO_TA_TT[k][1], kp: k === 'TD' ? { loai: 'td' } : null, hangLS: r.hangLS }); } }).catch(e => { daGui[k] = cu; toast('Chưa lưu được thay đổi: ' + e.message.replace(/^[A-Z_]+:\s*/, '')); }); }, 700);
+  };
+  addEventListener('hashchange', () => { const v = location.hash.slice(1); if (v && !duocMo(v)) location.hash = '#tracuu'; });
 
   function themMenuTaiKhoan(t) {
     const m = $('#acctMenu');
@@ -2203,9 +2249,17 @@ $('#tabs').addEventListener('pointerdown', e => {
       '<div class="fillcol"><iframe src="https://drive.google.com/file/d/' + encodeURIComponent(x.fileId) + '/preview" style="flex:1;width:100%;min-height:60vh;border:0;border-radius:10px;background:var(--bg)" allow="autoplay" title="Xem tệp"></iframe><p class="note" style="margin:8px 0 0">Không xem được? Tài khoản Google đang đăng nhập trên trình duyệt cần được cấp quyền xem tệp trên Drive. Bấm "Mở trên Drive" để xem hoặc xin quyền.</p></div>',
       { size: 'xl', foot: [mo] });
   };
+  /* Nội dung chia sẻ: Dự án / Loại số … ngày … về việc … / Link tài liệu */
+  const linkMo = l => { const id = idTuLink(l); return id && !/\/folders\//.test(l) ? 'https://drive.google.com/open?id=' + id : l; };
+  function noiDungChiaSe(x) {
+    const nd = String(x.nd || '').trim().replace(/^(về việc|v\/v|vv)\s*[:,.-]?\s*/i, ''), vv = nd ? ' về việc ' + nd.charAt(0).toLowerCase() + nd.slice(1) : '';
+    const dong = ['- Dự án: ' + x.p.ten, '- ' + (x.loai || 'Văn bản') + (x.so ? ' số ' + x.so : '') + (ngayVN(x) ? ' ngày ' + ngayVN(x) : '') + vv, '- Link tài liệu: ' + linkMo(x.link)];
+    (x.plLinks || []).forEach(p => dong.push('- Phụ lục ' + p.t + ': ' + linkMo(p.link)));
+    return dong.join('\n');
+  }
   chiaSeTep = function (x) {
     if (!x.link) { toast('Văn bản này chưa có link tệp.'); return; }
-    const txt = [x.p.ten, (x.loai || '') + (x.so ? ' số ' + x.so : '') + (ngayVN(x) ? ' ngày ' + ngayVN(x) : ''), x.nd, x.link].filter(Boolean).join('\n');
+    const txt = noiDungChiaSe(x);
     let tep = null;
     const nutTep = mkBtn(ic('share') + '<span>Chia sẻ dạng tệp</span>', async () => {
       if (tep) { // bước 2: đã có tệp, gửi qua Zalo, email… (cần bấm lần nữa vì trình duyệt chỉ cho mở bảng chia sẻ ngay sau khi bấm)
@@ -2239,6 +2293,279 @@ $('#tabs').addEventListener('pointerdown', e => {
     const d = new Date(), ma = String(d.getFullYear()).slice(2) + pad2(d.getMonth() + 1) + pad2(d.getDate());
     taiTep(new Blob([csv], { type: 'text/csv' }), 'Bang-ke-phap-ly-' + ma + '.csv').then(ok => { if (ok) goi('ghiLog', 'Xuất bảng kê', rows.length + ' văn bản').catch(() => { }); });
   };
+
+
+  /* ================= ĐỢT 2 ================= */
+  const thongBao = e => String(e && e.message || e).replace(/^[A-Z_]+:\s*/, '');
+  const vanTay = x => (x.so || '') + '|' + (x.nd || '');
+  const duoiTep = n => ((String(n || '').match(/\.([^.]+)$/) || [, ''])[1]).toLowerCase();
+  const QUYEN_TT = { TK: 'admin', TD: 'tiendo', SAVED: 'leader', KIEU: 'admin', BOCUC: 'admin', MENU: 'admin', TIENDO: 'admin', TYPES: 'admin', PHAPLY: 'admin' };
+  const duocLuu = k => ROLE === 'admin' || (QUYEN_TT[k] === 'leader' && ROLE === 'leader') || (QUYEN_TT[k] === 'tiendo' && EDITORS.includes(TOI.email));
+  const _dongBo = window.__dongBo;
+  window.__dongBo = k => { if (duocLuu(k)) _dongBo(k); };
+  /* Danh sách loại văn bản, loại pháp lý: lưu khi đóng hộp quản lý */
+  const _dong = closeModal;
+  closeModal = function () { _dong(); if (ROLE === 'admin') { window.__dongBo('TYPES'); window.__dongBo('PHAPLY'); } };
+
+  /* ---------- Tải tệp lên Drive: gửi thẳng từ trình duyệt, không được thì chuyển qua máy chủ ---------- */
+  let quaMayChu = !!GAS;
+  function guiThang(uri, blob, start, total) {
+    return new Promise((ok, no) => {
+      const x = new XMLHttpRequest(); x.open('PUT', uri); x.setRequestHeader('Content-Range', 'bytes ' + start + '-' + (start + blob.size - 1) + '/' + total);
+      x.onload = () => x.status === 308 ? ok(false) : (x.status === 200 || x.status === 201) ? ok(true) : no(Error('Drive trả mã ' + x.status));
+      x.onerror = () => no(Error('CORS')); x.send(blob);
+    });
+  }
+  const sangB64 = blob => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1] || ''); r.onerror = () => no(r.error); r.readAsDataURL(blob); });
+  async function taiTepLen(file, ph, tien) {
+    const total = file.size; let start = 0;
+    while (start < total) {
+      const co = quaMayChu ? ph.chunkRelay : ph.chunk, blob = file.slice(start, Math.min(total, start + co));
+      if (!quaMayChu) {
+        try { await guiThang(ph.uri, blob, start, total); }
+        catch (e) { if (e.message === 'CORS' && start === 0) { quaMayChu = true; continue; } throw e; }
+      } else await goi('chuyenKhuc', { uri: ph.uri, base64: await sangB64(blob), start, total });
+      start += blob.size; tien(blob.size);
+    }
+  }
+  async function taiNhieu(ph, files, tien) { for (let i = 0; i < files.length; i++) await taiTepLen(files[i], { uri: ph.tep[i].uri, chunk: ph.chunk || 16777216, chunkRelay: ph.chunkRelay || 8388608 }, tien); }
+
+  /* ---------- Hàng đợi tải hồ sơ: nhập tiếp hồ sơ khác trong lúc tệp đang lên Drive ---------- */
+  const HANG = []; let dangChay = false;
+  function veTienTrinh(pc, txt) { $('#uBar').style.width = pc + '%'; if (txt) $('#uTxt').textContent = txt; }
+  function themDongGanDay(job) {
+    const rc = $('#uRecent'); if (rc.querySelector('.empty')) rc.innerHTML = '';
+    const li = document.createElement('li'); li.className = 'r'; li.style.gridTemplateColumns = '1fr';
+    li.innerHTML = '<div><div class="l1"><b>' + esc(job.doc.so || 'Chưa có số') + '</b> | ' + esc(job.doc.cq) + '</div><div class="l2">' + ngayVN(job.doc) + ' · ' + nhomTen(job.doc.nhom) + ' · ' + esc(job.tenDA) + '</div><div class="l3 note" data-st>Đang chờ tải…</div></div>';
+    rc.prepend(li); job.li = li;
+  }
+  const trangThaiJob = (job, t, loi) => { const el = job.li && job.li.querySelector('[data-st]'); if (el) { el.textContent = t; el.style.color = loi ? 'var(--bad)' : ''; } };
+  async function chayHang() {
+    if (dangChay) return; dangChay = true;
+    while (HANG.length) {
+      const job = HANG[0];
+      try {
+        const tong = job.files.reduce((a, f) => a + f.file.size, 0) || 1; let da = 0;
+        trangThaiJob(job, 'Đang mở phiên tải lên Drive…'); veTienTrinh(2, 'Đang tải: ' + job.ten + (HANG.length > 1 ? ' (còn ' + (HANG.length - 1) + ' hồ sơ chờ)' : ''));
+        const ph = await goi('moPhienTai', { tenDA: job.tenDA, nhom: job.doc.nhom, kieu: job.kieu, base: job.base, origin: location.origin, tep: job.files.map(f => ({ ten: f.ten, size: f.file.size, mime: f.file.type || 'application/octet-stream', vaiTro: f.vaiTro })) });
+        await taiNhieu(ph, job.files.map(f => f.file), n => { da += n; const pc = Math.round(da / tong * 92) + 3; veTienTrinh(pc); trangThaiJob(job, 'Đang tải tệp lên Drive ' + pc + '%'); });
+        const ids = { pl: [] }; ph.tep.forEach(t => { if (t.vaiTro === 'pl') ids.pl.push(t.id); else if (t.vaiTro === 'anh') { } else ids[t.vaiTro] = t.id; }); if (ph.thuMucAnh) ids.thuMucAnh = ph.thuMucAnh;
+        trangThaiJob(job, 'Đang ghi vào trang tính…');
+        const kq = await goi('ghiHoSo', { tenDA: job.tenDA, doc: job.doc, ids, kieu: job.kieu, soAnh: job.soAnh, cheDo: job.cheDo });
+        if (kq && kq.docs) apTab(kq);
+        logH(job.cheDo === 'tep' ? 'Tải tệp vào thư mục (không ghi danh sách)' : 'Tải hồ sơ lên', job.tenDA + ' · ' + (job.doc.so || '(chưa có số)') + ' ' + job.doc.nd.slice(0, 60));
+        trangThaiJob(job, 'Hoàn tất: ' + job.ten); veTienTrinh(100, 'Hoàn tất: ' + job.ten);
+      } catch (e) { trangThaiJob(job, 'Lỗi: ' + thongBao(e) + ' — hồ sơ chưa được ghi, hãy tải lại.', true); veTienTrinh(0, 'Có lỗi khi tải ' + job.ten + ': ' + thongBao(e)); toast('Tải hồ sơ lỗi: ' + thongBao(e)); }
+      HANG.shift();
+    }
+    dangChay = false; setTimeout(() => { if (!dangChay) $('#uBar').style.width = '0'; }, 1800);
+  }
+  addEventListener('beforeunload', e => { if (dangChay) { e.preventDefault(); e.returnValue = ''; } });
+  $('#upForm').onsubmit = (e, cheDo) => {
+    if (e) e.preventDefault();
+    const p = projByName($('#uDa').value), ng = $('#uNgay').value.split('-').map(Number), nd = lamSachTrichYeu($('#uNd').value), m = cheDoTep();
+    const thieu = []; if (!p) thieu.push('Dự án'); if (!$('#uLoai').value) thieu.push('Loại văn bản'); if (!ng[0]) thieu.push('Ngày văn bản'); if (!nd) thieu.push('Trích yếu'); if (!$('#uFile').files.length && !(m === 'bc' && $('#uPpt').files.length)) thieu.push(m === 'anh' ? 'Ảnh' : 'Tệp hồ sơ');
+    if (thieu.length) { toast('Còn thiếu: ' + thieu.join(', ') + '.'); return; }
+    if (p.id[0] !== 'p') { toast('Dự án này chưa có tab hồ sơ trong trang tính List hồ sơ.'); return; }
+    const trg = kiemTraTrung();
+    if (trg.trung && !isAdmin()) { toast('Hồ sơ đã có trên hệ thống, không tải lên. Cần sửa thì dùng nút Chỉnh sửa ở Tra cứu.'); $('#uWarn').scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+    if (trg.trung && !cheDo) {
+      openModal('Hồ sơ đã có trên hệ thống', '<p>Đã có văn bản <b>' + esc(trg.x.loai + ' ' + (trg.x.so || '') + ' ngày ' + (ngayVN(trg.x) || '—')) + '</b> · ' + esc(trg.x.nd.slice(0, 100)) + ' (' + esc(trg.x.p.ten) + ').</p><p class="note" style="margin-top:8px"><b>Ghi vào danh sách và lưu tệp:</b> thêm một dòng mới trên trang tính, Tra cứu thấy cả hai văn bản.<br><b>Chỉ lưu tệp vào thư mục:</b> tệp nằm trong thư mục dự án trên Drive, không thêm dòng vào danh sách.</p>',
+        { foot: [mkBtn('Chỉ lưu tệp vào thư mục', () => { closeModal(); $('#upForm').onsubmit(null, 'tep'); }), mkBtn('Ghi vào danh sách và lưu tệp', () => { closeModal(); $('#upForm').onsubmit(null, 'ds'); }, 'p')] });
+      return;
+    }
+    const doc = { loai: $('#uLoai').value, so: $('#uSo').value.trim(), nd, y: ng[0], m: ng[1], d: ng[2], cq: $('#uCq').value.trim(), nk: $('#uNk').value.trim(), nhom: +$('#uNhom').value || 1 };
+    const kh = keHoachTep(doc); if (kh.loi) { toast(kh.loi); return; }
+    const base = tenTep(doc).replace(/\.pdf$/, ''), files = [], fs = [...$('#uFile').files];
+    if (m === 'bc') { const pdf = fs[0], ppt = $('#uPpt').files[0]; if (pdf) files.push({ file: pdf, ten: base + '.pdf', vaiTro: 'chinh' }); if (ppt) files.push({ file: ppt, ten: base + '.' + duoiTep(ppt.name), vaiTro: pdf ? 'pptx' : 'chinh' }); }
+    else if (m === 'anh') fs.forEach((f, k) => files.push({ file: f, ten: base + ' - ' + String(k + 1).padStart(2, '0') + '.' + (duoiTep(f.name) || 'jpg'), vaiTro: 'anh' }));
+    else files.push({ file: fs[0], ten: base + '.' + (duoiTep(fs[0].name) || 'pdf'), vaiTro: 'chinh' });
+    if ($('#uHasPl').checked) [...$('#uPl').files].forEach((f, k) => files.push({ file: f, ten: base + ' PL' + (k + 1) + '.' + (duoiTep(f.name) || 'pdf'), vaiTro: 'pl' }));
+    const job = { tenDA: p.ten, doc, base, files, kieu: m === 'anh' ? 'anh' : '', soAnh: m === 'anh' ? fs.length : 0, cheDo: cheDo || '', ten: m === 'anh' ? base + ' (thư mục ' + fs.length + ' ảnh)' : files[0].ten };
+    const keepDa = $('#uDa').value; $('#upForm').reset(); $('#uDa').value = keepDa; $('#uPlBox').hidden = true; $('#uName').textContent = ''; $('#uWarn').hidden = true; capNhatOTep();
+    themDongGanDay(job); HANG.push(job); toast('Đã nhận hồ sơ, đang tải lên Drive. Có thể nhập tiếp hồ sơ khác, nhưng đừng đóng trang khi chưa xong.'); chayHang();
+  };
+
+  /* ---------- Sửa văn bản: quản lý sửa thẳng; cán bộ gửi yêu cầu, quản lý duyệt ---------- */
+  const tenTepMoi = (x, moi, tenGoc) => { const d = Object.assign({}, x, moi); return tenTep(d).replace(/\.pdf$/, '') + '.' + (duoiTep(tenGoc) || 'pdf'); };
+  async function luuSua(x, { moi, doi, verFile, plFiles, moTa }) {
+    const dangSo = x.pl.length, tenDA = moi.tenDA || x.p.ten, nhom = moi.nhom || x.nhom || 1;
+    const doiTen = ['d', 'm', 'y', 'cq', 'nd'].some(k => moi[k] !== undefined && String(moi[k]) !== String(x[k] || '')) && x.fileId && !x.thuMuc;
+    const tenT = doiTen ? tenTepMoi(x, moi, x.tenGoc) : '';
+    const plTep = (plFiles || []).map((f, k) => ({ file: f, ten: tenTep(Object.assign({}, x, moi)).replace(/\.pdf$/, '') + ' PL' + (dangSo + k + 1) + '.' + (duoiTep(f.name) || 'pdf'), vaiTro: 'pl' }));
+    const choDuyet = !isAdmin(), tep = [];
+    if (verFile && choDuyet) tep.push({ file: verFile, ten: (tenT || x.tenGoc || 'Phien ban moi') + ' (ban de nghi)', vaiTro: 'ver' });
+    tep.push(...plTep);
+    let ph = { tep: [] };
+    toast('Đang lưu…');
+    if (tep.length) { ph = await goi('moPhienTai', { tenDA, nhom, choDuyet, origin: location.origin, tep: tep.map(f => ({ ten: f.ten, size: f.file.size, mime: f.file.type || 'application/octet-stream', vaiTro: f.vaiTro })) }); await taiNhieu(ph, tep.map(f => f.file), () => { }); }
+    const plIds = ph.tep.filter(t => t.vaiTro === 'pl').map(t => t.id), verId = (ph.tep.find(t => t.vaiTro === 'ver') || {}).id;
+    if (choDuyet) {
+      const doiS = {}; Object.entries(doi || {}).forEach(([k, v]) => doiS[k] = k === 'p' ? [v[0].ten, v[1].ten] : v);
+      const r = await goi('guiYeuCau', { kind: 'doc', docId: x.id, fp: vanTay(x), doi: doiS, moi, tenTep: tenT, ver: verId || null, tenVer: verFile ? verFile.name : '', pl: plIds, moTa: x.p.ten + ' · ' + (x.so || '') + ' · ' + moTa });
+      REQS.unshift(yeuCauTuMayChu(r)); logH('Gửi yêu cầu cập nhật', x.p.ten + ' · ' + (x.so || '') + ' · ' + moTa); veBadge(); loc();
+      toast('Đã gửi yêu cầu cập nhật, quản lý sẽ nhận email để duyệt.'); return;
+    }
+    if (verFile) { const pv = await goi('moPhienPhienBan', { fileId: x.fileId, size: verFile.size, mime: verFile.type || 'application/octet-stream', origin: location.origin }); await taiTepLen(verFile, pv, () => { }); }
+    const kq = await goi('suaHoSo', { key: x.id, fp: vanTay(x), moi, plMoi: plIds, tenTep: tenT, moTa: moTa + (verFile ? '; thay bằng phiên bản mới' : '') });
+    if (kq.them) apTab(kq.them); apTab(kq.tab);
+    logH('Sửa thông tin văn bản', tenDA + ' · ' + (moi.so !== undefined ? moi.so : x.so || '') + ' · ' + moTa, null, { loai: 'doc', key: kq.keyMoi, cu: kq.cu }); HIST[0].hangLS = kq.hangLS;
+    if (!$('#v-lichsu').hidden) veLichSu();
+    toast('Đã cập nhật hồ sơ.');
+  }
+  const moiTuForm = () => { const ng = $('#eNgay').value.split('-').map(Number); return { tenDA: $('#eDa').value.trim(), loai: $('#eLoai').value, so: $('#eSo').value.trim(), nd: lamSachTrichYeu($('#eNd').value), cq: $('#eCq').value.trim(), nk: $('#eNk').value.trim(), nhom: +$('#eNhom').value || 1, d: ng[2] || 0, m: ng[1] || 0, y: ng[0] || 0 }; };
+  capNhatVB = function (x) {
+    if (ROLE === 'leader' || ROLE === 'guest') return;
+    const save = () => {
+      const rq = docForm(x), verFile = $('#eFile').files[0], plFiles = [...$('#ePl').files];
+      if (!Object.keys(rq.doi).length && !verFile && !plFiles.length) { closeModal(); return; }
+      const moi = moiTuForm(); if (rq.doi.p && !projByName(moi.tenDA)) { toast('Không tìm thấy dự án "' + moi.tenDA + '".'); return; }
+      if (verFile && (!x.fileId || x.thuMuc)) { toast('Văn bản này gắn thư mục, không thay phiên bản tệp được.'); return; }
+      const moTa = moTaDoi(rq).join('; ');
+      closeModal(); luuSua(x, { moi, doi: rq.doi, verFile, plFiles, moTa }).catch(e => toast((/CHANGED/.test(e.message) ? '' : 'Chưa lưu được: ') + thongBao(e)));
+    };
+    const b = huyCapNhat(save); b.mark = (m => () => { m(); if (!isAdmin()) b.textContent = 'Gửi yêu cầu duyệt'; })(b.mark);
+    const cho = REQS.find(r => r.docId === x.id && r.st === 'cho');
+    openModal(isAdmin() ? 'Chỉnh sửa hồ sơ' : 'Đề nghị chỉnh sửa hồ sơ', (cho ? '<div class="warnbox" style="margin-bottom:10px">Hồ sơ này đang có yêu cầu cập nhật của ' + esc(cho.em) + ' chờ duyệt.</div>' : '') + formVB(x), { size: 'w', foot: isAdmin() ? [{ slot: 'left', el: mkBtn(ic('trash') + 'Xóa hồ sơ', () => xoaVB(x), 'd') }, b] : [b] });
+    $('#mBody').addEventListener('input', b.mark); $('#mBody').addEventListener('change', b.mark);
+    $('#eVung').onchange = () => { $('#eTinh').innerHTML = TINH_AZ.filter(t => tinhVung(t) === $('#eVung').value).map(t => '<option>' + t + '</option>').join(''); };
+    nangCapNgay($('#mBody')); nangCapGoiY();
+  };
+  boSungPL = function (x) {
+    if (ROLE === 'guest') return;
+    openModal('Bổ sung phụ lục', '<p class="sub">' + esc((x.so || 'Chưa có số') + ' · ' + x.nd) + '</p><label class="f" style="margin-top:10px">Tệp phụ lục (chọn nhiều tệp, đánh số tiếp theo PL' + (x.pl.length + 1) + '…)<input id="plFile" type="file" multiple></label>' + (isAdmin() ? '' : '<p class="note" style="margin-top:8px">Phụ lục được gắn vào hồ sơ sau khi quản lý duyệt.</p>'),
+      { foot: [mkBtn(isAdmin() ? 'Lưu phụ lục' : 'Gửi yêu cầu duyệt', () => { const fs = [...$('#plFile').files]; if (!fs.length) { toast('Hãy chọn ít nhất một tệp.'); return; } closeModal(); luuSua(x, { moi: {}, doi: {}, plFiles: fs, moTa: 'Bổ sung ' + fs.length + ' phụ lục' }).catch(e => toast('Chưa lưu được: ' + thongBao(e))); }, 'p')] });
+  };
+  xoaVB = function (x) {
+    if (!isAdmin()) return;
+    openModal('Xóa hồ sơ?', '<p>Tệp <b>' + esc(x.tenGoc || tenTep(x)) + '</b>' + (x.pl.length ? ' và ' + x.pl.length + ' phụ lục' : '') + ' sẽ chuyển vào thùng rác Drive (khôi phục được trong 30 ngày), và dòng tương ứng trên trang tính bị xóa.</p>',
+      { foot: [mkBtn('Xóa vào thùng rác', async ev => { ev.target.disabled = true; try { const kq = await goi('xoaHoSo', { key: x.id, fp: vanTay(x) }); apTab(kq.tab); logH('Xóa hồ sơ', x.p.ten + ' · ' + (x.so || '') + ' ' + x.nd.slice(0, 60)); closeModal(); if (!$('#v-lichsu').hidden) veLichSu(); toast('Đã chuyển vào thùng rác.'); } catch (e) { ev.target.disabled = false; toast('Chưa xóa được: ' + thongBao(e)); } }, 'd')] });
+  };
+
+  /* ---------- Duyệt / từ chối yêu cầu ---------- */
+  function capNhatREQS(ds) { if (Array.isArray(ds)) { REQS.length = 0; (isAdmin() ? ds : ds.filter(r => r.em === TOI.email)).forEach(q => REQS.push(yeuCauTuMayChu(q))); } veYeuCau(); }
+  $('#rqList').parentElement.addEventListener('click', async e => {
+    const b = e.target.closest('#rqList button[data-dy], #rqList button[data-tc]'); if (!b) return;
+    e.stopPropagation(); e.preventDefault();
+    const r = REQS.find(q => q.id === (b.dataset.dy || b.dataset.tc)); if (!r) return;
+    const ten = r.kind === 'bd' ? tieuDeCfg(r.cfg) : (r.moTa || '');
+    if (b.dataset.tc) {
+      openModal('Từ chối yêu cầu', '<label class="f">Lý do (gửi email lại cho ' + esc(r.em) + ')<textarea id="tcLy" placeholder="VD: Số văn bản đúng như bản gốc"></textarea></label>', { foot: [mkBtn('Từ chối yêu cầu', async ev => {
+        ev.target.disabled = true; try { const kq = await goi('xuLyYeuCau', { id: r.id, dongY: false, ly: $('#tcLy').value.trim() }); logH(r.kind === 'bd' ? 'Từ chối biểu đồ thống kê' : 'Từ chối yêu cầu cập nhật', ten + ' · của ' + r.em); closeModal(); capNhatREQS(kq.reqs); toast('Đã từ chối và gửi email cho ' + r.em + '.'); } catch (er) { ev.target.disabled = false; toast(thongBao(er)); } }, 'd')] });
+      return;
+    }
+    b.disabled = true; b.textContent = 'Đang duyệt…';
+    try {
+      const kq = await goi('xuLyYeuCau', { id: r.id, dongY: true });
+      if (r.kind === 'bd') { const sv = kq.saved[kq.saved.length - 1]; SAVED.push(sv); daGui.SAVED = JSON.stringify(SAVED); taoPanelLuu(sv); veLuu(); capNhatBoCuc(); logH('Duyệt biểu đồ thống kê', ten + ' · của ' + r.em); toast('Đã duyệt, biểu đồ đã thêm vào tab Thống kê cho mọi người.'); }
+      else { if (kq.them) apTab(kq.them); if (kq.tab) apTab(kq.tab); logH('Duyệt yêu cầu cập nhật', ten + ' · của ' + r.em, null, { loai: 'doc', key: kq.keyMoi, cu: kq.cu }); HIST[0].hangLS = kq.hangLS; toast('Đã duyệt và áp dụng thay đổi.'); }
+      capNhatREQS(kq.reqs); loc();
+    } catch (er) { b.disabled = false; b.textContent = 'Duyệt'; toast('Chưa duyệt được: ' + thongBao(er)); }
+  }, true);
+  $('#c6save').onclick = async () => {
+    if (!CUSTOM) return;
+    if (ROLE !== 'staff') return luuBieuDo(CUSTOM, $('#ch6').dataset.span);
+    $('#c6save').disabled = true;
+    try { const r = await goi('guiYeuCau', { kind: 'bd', cfg: JSON.parse(JSON.stringify(CUSTOM)), span: $('#ch6').dataset.span, moTa: tieuDeCfg(CUSTOM) }); REQS.unshift(yeuCauTuMayChu(r)); veBadge(); $('#c6saveT').textContent = 'Đã gửi duyệt';
+      toast('Đã gửi quản lý duyệt. Trong lúc chờ, anh/chị vẫn xem và tải biểu đồ này được; nếu tải lại trang trước khi được duyệt, biểu đồ nháp sẽ mất.'); }
+    catch (e) { $('#c6save').disabled = false; toast('Chưa gửi được: ' + thongBao(e)); }
+  };
+
+  /* ---------- Khôi phục dữ liệu cũ (quản lý, trong tab Lịch sử) ---------- */
+  khoiPhuc = function (h) {
+    if (!h || !h.kp || h.daKP || !isAdmin()) return; const kp = h.kp;
+    if (!h.hangLS) { toast('Hãy bấm "Đọc lại dữ liệu mới nhất" rồi khôi phục.'); return; }
+    let moTa = '', lam;
+    if (kp.loai === 'doc') {
+      const x = DOCS.find(d => d.id === kp.key); if (!x) { toast('Không tìm thấy văn bản này (có thể đã xóa hoặc đổi vị trí). Hãy bấm "Đọc lại dữ liệu mới nhất" rồi thử lại.'); return; }
+      const c = kp.cu, hang = [['Dự án', x.p.ten, c.tenDA], ['Loại văn bản', x.loai, c.loai], ['Số văn bản', x.so, c.so], ['Ngày văn bản', ngayVN(x), ngayVN(c)], ['Trích yếu', x.nd, c.nd], ['Cơ quan ban hành', x.cq, c.cq], ['Người ký', x.nk, c.nk], ['Nhóm thư mục', nhomTen(x.nhom), nhomTen(c.nhom)]].filter(r => String(r[1] || '') !== String(r[2] || ''));
+      if (!hang.length) { toast('Dữ liệu hiện tại đã giống dữ liệu cũ, không cần khôi phục.'); return; }
+      moTa = '<div class="tb" style="margin-top:8px"><table style="table-layout:fixed"><thead><tr><th style="width:24%">Thông tin</th><th>Hiện tại</th><th>Sau khi khôi phục</th></tr></thead><tbody>' + hang.map(r => '<tr><td>' + r[0] + '</td><td>' + esc(r[1] || '—') + '</td><td><b>' + esc(r[2] || '—') + '</b></td></tr>').join('') + '</tbody></table></div>';
+      lam = async () => { const moi = Object.assign({}, c); const doiTen = ['d', 'm', 'y', 'cq', 'nd'].some(k => String(c[k] || '') !== String(x[k] || '')) && x.fileId && !x.thuMuc;
+        const kq = await goi('suaHoSo', { key: x.id, fp: vanTay(x), moi, khoiPhuc: true, hangLS: h.hangLS, tenTep: doiTen ? tenTepMoi(x, c, x.tenGoc) : '', moTa: 'khôi phục ' + hang.map(r => r[0]).join(', ') + ' (hoàn tác lần sửa của ' + h.em + ')' });
+        if (kq.them) apTab(kq.them); apTab(kq.tab); return c.tenDA + ' · ' + (c.so || '') + ' · ' + hang.map(r => r[0]).join(', '); };
+    } else if (kp.loai === 'td') {
+      moTa = '<p>Bảng tiến độ sẽ trở về như trước lần cập nhật lúc ' + h.t.toLocaleString('vi-VN') + '. Các thay đổi trên bảng tiến độ sau thời điểm đó cũng bị thay thế.</p>';
+      lam = async () => { const cu = await goi('khoiPhucTD', h.hangLS); TD.splice(0, TD.length, ...(cu || [])); daGui.TD = JSON.stringify(TD); if (!$('#v-tiendo').hidden) veTienDo(); return 'Bảng kê tiến độ về bản trước lần cập nhật lúc ' + h.t.toLocaleString('vi-VN'); };
+    } else return;
+    openModal('Khôi phục dữ liệu cũ?', '<p class="sub">Lần sửa: <b>' + esc(h.tt) + '</b> của ' + esc(h.em) + ' lúc ' + h.t.toLocaleString('vi-VN') + '</p>' + moTa,
+      { size: 'w', foot: [mkBtn('Khôi phục', async ev => { ev.target.disabled = true; try { const nd = await lam(); h.daKP = true; logH('Khôi phục dữ liệu', nd + ' (hoàn tác lần sửa của ' + h.em + ')'); closeModal(); veLichSu(); toast('Đã khôi phục dữ liệu cũ.'); } catch (e) { ev.target.disabled = false; toast('Chưa khôi phục được: ' + thongBao(e)); } }, 'p')] });
+  };
+
+  /* ---------- Xem tệp ngay trên cổng ---------- */
+  const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+  let napPdf = null;
+  const taiPdfJs = () => napPdf || (napPdf = new Promise((ok, no) => { const s = document.createElement('script'); s.src = PDFJS + 'pdf.min.js'; s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.js'; ok(window.pdfjsLib); }; s.onerror = () => { napPdf = null; no(Error('Không tải được bộ đọc PDF.')); }; document.head.appendChild(s); }));
+  const BO_TEP = new Map();
+  const layNoiDung = id => { if (BO_TEP.has(id)) return BO_TEP.get(id); const p = goi('xemTep', id).catch(e => { BO_TEP.delete(id); throw e; }); BO_TEP.set(id, p); if (BO_TEP.size > 12) BO_TEP.delete(BO_TEP.keys().next().value); return p; };
+  const moDrive = (id, thuMuc) => window.open(thuMuc ? 'https://drive.google.com/drive/folders/' + id : 'https://drive.google.com/file/d/' + id + '/view', '_blank', 'noopener');
+  const b64SangU8 = b => { const s = atob(b), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; };
+  const stv = document.createElement('style');
+  stv.textContent = '.xv{flex:1;min-height:60vh;overflow:auto;background:var(--bg);border-radius:10px;padding:10px;display:flex;flex-direction:column;align-items:center;gap:10px;-webkit-overflow-scrolling:touch}.xv canvas,.xv img.trang{background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.18);max-width:none}.xv .tb2{color:var(--mute);text-align:center;padding:30px 10px}.xv .tb2 .btn2{margin-top:10px}.gal2{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;width:100%}.gal2 button{padding:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card);aspect-ratio:4/3;display:grid;place-items:center;font-size:11px;color:var(--mute)}.gal2 img{width:100%;height:100%;object-fit:cover}.xv img.lon{max-width:100%;max-height:72vh;object-fit:contain}@media(max-width:900px){.xv{min-height:calc(100dvh - 190px)}}';
+  document.head.appendChild(stv);
+  xemHoSo = function (x, f) {
+    if (!x.link) { toast('Văn bản này chưa có link tệp trên trang tính.'); return; }
+    if (x.thuMuc) return xemThuMuc(x);
+    if (!x.fileId) { window.open(x.link, '_blank', 'noopener'); return; }
+    const files = [{ t: 'Văn bản chính', id: x.fileId }, ...(x.plLinks || []).map(p => ({ t: p.t, id: idTuLink(p.link) })).filter(p => p.id)];
+    let i = Math.max(0, files.findIndex(z => z.t === f)), z = 0, lan = 0, pdf = null;
+    const lab = document.createElement('span'); lab.id = 'vLab'; lab.className = 'note';
+    const foot = [];
+    if (files.length > 1) foot.push({ slot: 'left', el: mkBtn(ic('prev'), () => { i = (i - 1 + files.length) % files.length; mo(); }, 'i') });
+    foot.push({ slot: 'left', el: lab });
+    if (files.length > 1) foot.push({ slot: 'left', el: mkBtn(ic('next'), () => { i = (i + 1) % files.length; mo(); }, 'i') });
+    [['zout', 'Thu nhỏ', -1], ['zin', 'Phóng to', 1], ['fit', 'Vừa khung', 0]].forEach(t => { const b = mkBtn(ic(t[0]), () => { z = t[2] ? Math.max(-4, Math.min(6, z + t[2])) : 0; veLai(); }, 'i'); b.title = t[1]; b.setAttribute('aria-label', t[1]); foot.push({ slot: 'mid', el: b }); });
+    foot.push(mkBtn('Mở trên Drive', () => moDrive(files[i].id)));
+    if (isAdmin() || ROLE === 'staff') foot.push(mkBtn(ic('edit') + (isAdmin() ? 'Cập nhật' : 'Đề nghị sửa'), () => capNhatVB(x)));
+    openModal((x.so || x.loai || 'Hồ sơ') + ' · ' + x.p.ten, '<div class="fillcol"><div class="xv" id="xv"></div></div>', { size: 'xl', foot });
+    const khung = $('#xv');
+    const bao = (t, nut) => { khung.innerHTML = '<div class="tb2">' + t + (nut ? '<div><button type="button" class="p btn2" id="xvDrive">Mở trên Drive</button></div>' : '') + '</div>'; const b2 = $('#xvDrive'); if (b2) b2.onclick = () => moDrive(files[i].id); };
+    async function veLai() {
+      if (!pdf) { const im = khung.querySelector('img.trang'); if (im) im.style.width = z ? (100 * Math.pow(1.2, z)) + '%' : ''; return; }
+      const my = ++lan, rongKhung = khung.clientWidth - 24, tl = window.devicePixelRatio || 1;
+      khung.innerHTML = '';
+      for (let n = 1; n <= pdf.numPages; n++) {
+        if (my !== lan) return;
+        const pg = await pdf.getPage(n), v0 = pg.getViewport({ scale: 1 }), sc = Math.min(rongKhung / v0.width, 2.2) * Math.pow(1.2, z), vp = pg.getViewport({ scale: sc * tl });
+        const cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height; cv.style.width = Math.round(vp.width / tl) + 'px'; cv.style.height = Math.round(vp.height / tl) + 'px'; khung.appendChild(cv);
+        await pg.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+      }
+    }
+    async function mo() {
+      const tep = files[i]; pdf = null; lan++; lab.textContent = tep.t + (files.length > 1 ? ' (' + (i + 1) + '/' + files.length + ')' : '');
+      khung.innerHTML = '<div class="tb2"><div class="spin" style="margin:0 auto 10px"></div>Đang mở tệp…</div>';
+      try {
+        const r = await layNoiDung(tep.id); if (files[i] !== tep) return;
+        if (r.moDrive) return bao(r.lon ? 'Tệp lớn hơn 25 MB, hãy xem trên Google Drive.' : 'Loại tệp này (' + esc(r.mime || '') + ') chưa xem trực tiếp trên cổng được, hãy mở trên Google Drive.', true);
+        if (/^image\//.test(r.mime)) { khung.innerHTML = '<img class="trang" alt="" src="data:' + r.mime + ';base64,' + r.b64 + '" style="max-width:100%">'; veLai(); return; }
+        const lib = await taiPdfJs(); pdf = await lib.getDocument({ data: b64SangU8(r.b64) }).promise; if (files[i] !== tep) return; z = 0; veLai();
+      } catch (e) { bao(/NO_VIEW/.test(e.message) ? 'Tài khoản ' + esc(TOI.email) + ' chưa được cấp quyền xem tệp này trên Drive. Bấm "Mở trên Drive" để gửi yêu cầu cấp quyền cho người quản lý tệp.' : 'Không mở được tệp: ' + esc(thongBao(e)), true); }
+    }
+    mo();
+  };
+  function xemThuMuc(x) {
+    let ds = [], i = -1;
+    const lab = document.createElement('span'); lab.id = 'vLab'; lab.className = 'note';
+    const bPrev = mkBtn(ic('prev'), () => { i = (i - 1 + ds.length) % ds.length; ve(); }, 'i'), bNext = mkBtn(ic('next'), () => { i = (i + 1) % ds.length; ve(); }, 'i'), bAll = mkBtn('Lưới ảnh', () => { i = -1; ve(); });
+    openModal((x.so || x.loai || 'Hình ảnh') + ' · ' + x.p.ten, '<div class="fillcol"><div class="xv" id="xv"><div class="tb2"><div class="spin" style="margin:0 auto 10px"></div>Đang đọc thư mục ảnh…</div></div></div>',
+      { size: 'xl', foot: [{ slot: 'left', el: bPrev }, { slot: 'left', el: lab }, { slot: 'left', el: bNext }, { slot: 'mid', el: bAll }, mkBtn('Mở thư mục Drive', () => moDrive(x.thuMuc, true))] });
+    const khung = $('#xv');
+    const ve = async () => {
+      bPrev.hidden = bNext.hidden = bAll.hidden = i < 0;
+      if (i < 0) {
+        lab.textContent = 'Tất cả ' + ds.length + ' ảnh';
+        khung.innerHTML = ds.length ? '<div class="gal2">' + ds.map((a, k) => '<button type="button" data-k="' + k + '"><img alt="" loading="lazy" referrerpolicy="no-referrer" src="https://drive.google.com/thumbnail?id=' + encodeURIComponent(a.id) + '&sz=w320" onerror="this.replaceWith(document.createTextNode(\'Ảnh ' + (k + 1) + '\'))"></button>').join('') + '</div>' : '<div class="tb2">Thư mục chưa có ảnh.</div>';
+        return;
+      }
+      const a = ds[i], my = i; lab.textContent = 'Ảnh ' + (i + 1) + '/' + ds.length;
+      khung.innerHTML = '<div class="tb2"><div class="spin" style="margin:0 auto 10px"></div>Đang mở ảnh…</div>';
+      try { const r = await layNoiDung(a.id); if (my !== i) return; khung.innerHTML = r.b64 ? '<img class="lon" alt="" src="data:' + r.mime + ';base64,' + r.b64 + '"><div class="note">' + esc(a.ten) + '</div>' : '<div class="tb2">Ảnh quá lớn, hãy mở thư mục trên Drive.</div>'; }
+      catch (e) { khung.innerHTML = '<div class="tb2">Không mở được ảnh: ' + esc(thongBao(e)) + '</div>'; }
+    };
+    khung.onclick = e => { const b = e.target.closest('.gal2 button'); if (b) { i = +b.dataset.k; ve(); } };
+    bPrev.hidden = bNext.hidden = bAll.hidden = true;
+    goi('dsAnh', x.thuMuc).then(r => { ds = r || []; ve(); }).catch(e => { khung.innerHTML = '<div class="tb2">' + (/NO_VIEW/.test(e.message) ? 'Tài khoản ' + esc(TOI.email) + ' chưa được cấp quyền xem thư mục ảnh này.' : 'Không đọc được thư mục: ' + esc(thongBao(e))) + '</div>'; });
+  }
 
   batDau().catch(e => moDangNhap(e.message, true));
 })();

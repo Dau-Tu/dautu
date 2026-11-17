@@ -167,6 +167,7 @@ body:has(#modal:not([hidden])) .pvbar{display:none}
  .shtb td{padding:0!important;border:0!important}.shtb td:nth-child(1){grid-row:1/span 3}.shtb td:nth-child(2){font-weight:600;word-break:break-all}.shtb td:nth-child(3){grid-column:2/-1;grid-row:2;font-size:12.5px;color:var(--mute)}
  .shtb td:nth-child(4){grid-column:3;grid-row:1}.shtb td:nth-child(5){grid-column:2;grid-row:3}.shtb td:nth-child(5) select{height:34px!important}.shtb td:nth-child(6){grid-column:3;grid-row:3;align-self:center;font-size:12px;color:var(--mute)}
 }
+.warnbox.loi{background:var(--bad-bg);color:var(--bad);border-color:var(--bad)}
 #tip{position:fixed;z-index:200;max-width:min(420px,calc(100vw - 24px));background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px var(--shade);padding:10px 12px;font-size:12px;pointer-events:none}
 #tip b{display:block;margin-bottom:6px;font-size:13px}#tip table{border-collapse:collapse;width:100%}#tip td,#tip th{padding:3px 6px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}#tip .n{text-align:right;font-variant-numeric:tabular-nums}#tip tr.thieu td:first-child::after{content:" ●";color:var(--warn)}#tip .dot{color:var(--warn)}
 .legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;background:var(--c)}
@@ -308,6 +309,8 @@ select:focus,input:not([type=checkbox]):not([type=radio]):focus,textarea:focus{b
  #pmFields{overflow:visible!important}
  .ganttwrap{max-height:none}
 }
+/* iPhone tự phóng to khi chữ trong ô nhập nhỏ hơn 16px: trên điện thoại giữ 16px để không bị zoom */
+@media(max-width:900px){input:not([type=checkbox]):not([type=radio]),select,textarea{font-size:16px!important}}
 @media(max-width:640px){
  body{font-size:13.5px}
  .g4,.g3,.g2,.g-nd{grid-template-columns:minmax(0,1fr)}
@@ -787,7 +790,7 @@ const fmtN = (n, d = 0) => n == null || n === '' || isNaN(n) ? '' : Number(n).to
 const pad2 = n => String(n).padStart(2, '0');
 const ngayVN = x => x.d && x.m ? pad2(x.d) + '/' + pad2(x.m) + '/' + x.y : (x.y ? 'Năm ' + x.y : '');
 function toast(t) { const el = $('#toast'); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 3000); }
-const LIVE = !!window.LIVE_CFG; let TOI = { email: '', role: 'admin' }; /* LIVE: chạy thật, dữ liệu lấy từ máy chủ */
+const LIVE = !!window.LIVE_CFG; const dongBoTT = k => { if (window.__dongBo) window.__dongBo(k); }; /* chạy thật: lưu trạng thái lên máy chủ */ let TOI = { email: '', role: 'admin' }; /* LIVE: chạy thật, dữ liệu lấy từ máy chủ */
 let ROLE = 'admin';
 const isAdmin = () => ROLE === 'admin';
 const ME = () => LIVE ? TOI.email : ({ admin: 'dtxd_fu@greenwich.edu.vn', leader: 'truongban.dt@fpt.edu.vn', staff: 'nguyenvana@fpt.edu.vn', guest: 'doitac.ngoai@gmail.com' })[ROLE];
@@ -1128,7 +1131,7 @@ function chiTietTD() {
       $$('#tdTb tbody tr').forEach(tr => { if (!tr.classList.contains('del')) giu.push(docDong(tr)); });
       const moi = $$('#tdNew tbody tr').map(docDong).filter(r => String(r[0]).trim());
       const xoa = TD.length - giu.length, kp = { loai: 'td', cu: JSON.parse(JSON.stringify(TD)) };
-      TD.splice(0, TD.length, ...giu, ...moi);
+      TD.splice(0, TD.length, ...giu, ...moi); dongBoTT('TD');
       logH('Cập nhật tiến độ', 'Bảng kê chi tiết' + (moi.length ? ' · thêm ' + moi.length + ' dòng' : '') + (xoa ? ' · xóa ' + xoa + ' dòng' : ''), null, kp);
       closeModal(); veTienDo(); toast('Đã cập nhật tiến độ.');
     };
@@ -1159,8 +1162,8 @@ $('#tdGrant').onclick = () => {
   const draw = () => $('#edList').innerHTML = EDITORS.map(e => '<div class="btns" style="justify-content:space-between;border-bottom:1px solid var(--line);padding:6px 0"><span>' + esc(e) + '</span><button class="d s" data-rm="' + esc(e) + '">Xóa quyền</button></div>').join('') || '<p class="note">Chưa có ai.</p>';
   openModal('Phân quyền cập nhật tiến độ', '<p class="sub">Người được cấp quyền sửa được toàn bộ bảng tiến độ (không chia theo dự án).</p><div class="g" style="grid-template-columns:minmax(0,1fr) auto;margin-top:10px"><input id="edNew" type="email" placeholder="Email Google"><button class="p" id="edAdd">Cấp quyền</button></div><div id="edList" style="margin-top:10px"></div>');
   draw();
-  $('#edAdd').onclick = () => { const v = $('#edNew').value.trim().toLowerCase(); if (!/^\S+@\S+\.\S+$/.test(v)) { toast('Email chưa hợp lệ.'); return; } if (!EDITORS.includes(v)) EDITORS.push(v); logH('Cấp quyền sửa tiến độ', v); $('#edNew').value = ''; draw(); };
-  $('#edList').onclick = e => { const v = e.target.dataset.rm; if (!v) return; EDITORS = EDITORS.filter(x => x !== v); logH('Xóa quyền sửa tiến độ', v); draw(); };
+  $('#edAdd').onclick = () => { const v = $('#edNew').value.trim().toLowerCase(); if (!/^\S+@\S+\.\S+$/.test(v)) { toast('Email chưa hợp lệ.'); return; } if (!EDITORS.includes(v)) EDITORS.push(v); dongBoTT('TIENDO'); logH('Cấp quyền sửa tiến độ', v); $('#edNew').value = ''; draw(); };
+  $('#edList').onclick = e => { const v = e.target.dataset.rm; if (!v) return; EDITORS = EDITORS.filter(x => x !== v); dongBoTT('TIENDO'); logH('Xóa quyền sửa tiến độ', v); draw(); };
 };
 
 /* ================= THỐNG KÊ ================= */
@@ -1239,7 +1242,7 @@ document.addEventListener('input', e => { const g = e.target.closest && e.target
 const ttAttr = (t, rows, dec, tong = true) => ' data-tt="' + esc(JSON.stringify({ t: tenNam(t), r: rows.map(x => [x[0], x[1], typeof x[2] === 'string' ? x[2] : fmtN(x[2] || 0, dec)]), tg: tong && rows.length > 1 ? fmtN(rows.reduce((a, x) => a + (x[2] || 0), 0), dec) : null })) + '"';
 /* Chỉnh sửa biểu đồ (quản lý): tên, kiểu biểu đồ, tông màu. Biểu đồ có sẵn lưu ở KIEU; biểu đồ tự tạo lưu trong cấu hình của nó */
 let KIEU = {}; try { KIEU = JSON.parse(localStorage.getItem('cho_kieu') || '{}'); } catch (e) { }
-const luuKieu = () => { try { localStorage.setItem('cho_kieu', JSON.stringify(KIEU)); } catch (e) { } };
+const luuKieu = () => { try { localStorage.setItem('cho_kieu', JSON.stringify(KIEU)); } catch (e) { } dongBoTT('KIEU'); };
 const LOAI_BD = { ch4: [['bar', 'Cột cạnh nhau'], ['stack', 'Cột chồng'], ['line', 'Đường']], ch1: [['hbar', 'Thanh ngang'], ['bar', 'Cột đứng'], ['line', 'Đường']], ch2: [['stack', 'Cột chồng'], ['bar', 'Cột cạnh nhau'], ['line', 'Đường']], ch3: [['bar', 'Cột'], ['line', 'Đường']], ch5: [['line', 'Đường'], ['bar', 'Cột cạnh nhau'], ['stack', 'Cột chồng']] };
 const kieuBD = id => (KIEU[id] && KIEU[id].type) || LOAI_BD[id][0][0];
 const TONG = { md: ['Mặc định', null], fpt: ['FPT', { c1: '#0066b3', c2: '#f37021', c3: '#4db848', bar2: '#8dbbe3', accent: '#f37021' }], am: ['Tông ấm', { c1: '#b5541c', c2: '#e0a33a', c3: '#7a8b3a', bar2: '#efc8a4', accent: '#8c3b2e' }],
@@ -1451,7 +1454,7 @@ function danhSoBieuDo() { $$('#charts>.panel:not([hidden])').forEach((pn, i) => 
 function capNhatBoCuc() {
   $$('#charts>.panel').forEach(pn => { const b = pn.querySelector('[data-size]'); if (b) { const half = pn.dataset.span === '1'; b.innerHTML = '<svg class="ic"><use href="#i-' + (half ? 'wide' : 'narrow') + '"/></svg>'; b.title = half ? 'Kéo rộng cả dòng' : 'Thu hẹp nửa dòng'; } });
   danhSoBieuDo();
-  try { localStorage.setItem('cho_bocuc', JSON.stringify($$('#charts>.panel').map(p => [p.id, p.dataset.span]))); } catch (e) { }
+  try { localStorage.setItem('cho_bocuc', JSON.stringify($$('#charts>.panel').map(p => [p.id, p.dataset.span]))); } catch (e) { } if (isAdmin()) dongBoTT('BOCUC');
 }
 function ganDieuKhien(pn) {
   const h = pn.querySelector('.chead'), t = pn.querySelector('.ctool');
@@ -1468,7 +1471,7 @@ function ganDieuKhien(pn) {
 }
 /* Biểu đồ đã lưu (quản lý lưu, mọi người cùng thấy; bản xem trước lưu trên trình duyệt này) */
 let SAVED = []; try { SAVED = JSON.parse(localStorage.getItem('cho_bieudo') || '[]'); } catch (e) { }
-const luuDS = () => { try { localStorage.setItem('cho_bieudo', JSON.stringify(SAVED)); } catch (e) { } };
+const luuDS = () => { try { localStorage.setItem('cho_bieudo', JSON.stringify(SAVED)); } catch (e) { } dongBoTT('SAVED'); };
 function tieuDeCfg(c) { return c.ten || tieuDeCfg0(c); }
 function tieuDeCfg0(c) { return c.m.map(k => CHISO[k][0].replace(/ \(ha\)/, '')).join(', ') + ' theo ' + NHOMTHEO[c.by][0].toLowerCase() + (c.cum ? ' (lũy kế)' : ''); }
 function taoPanelLuu(sv) {
@@ -1492,7 +1495,7 @@ function chiTietTK() {
   const html = '<div class="fillcol"><div class="tb" style="flex:1;min-height:120px;max-height:none"><table id="tkTb"><thead><tr><th class="c">TT</th><th>Dự án</th><th>Tỉnh</th><th>Vùng</th><th class="n">DT CTCT ĐT (m²)</th><th class="n">DT đã bàn giao (m²)</th><th colspan="3" class="c" style="box-shadow:none">Loại điểm trường</th><th>Loại hình pháp lý</th><th>Chấp thuận NĐT</th></tr><tr class="h2"><th colspan="6"></th><th class="c">FU</th><th class="c">FPL</th><th class="c">FSC</th><th colspan="2"></th></tr></thead><tbody>' + L.map(row).join('') + '<tr><td></td><td><b>Tổng ' + L.length + ' dự án</b></td><td></td><td></td><td class="n"><b>' + fmtN(tot[0]) + '</b></td><td class="n"><b>' + fmtN(tot[1]) + '</b></td>' + ['FU', 'FPL', 'FSC'].map(k => '<td class="c"><b>' + L.filter(x => x.loai.includes(k)).length + '</b></td>').join('') + '<td colspan="2"></td></tr></tbody></table></div><p class="note" style="margin-top:8px">Cột Chấp thuận NĐT nhập đủ ngày/tháng/năm, tháng/năm hoặc chỉ năm; thống kê chỉ lấy năm.</p></div>';
   const foot = [];
   if (isAdmin()) {
-    const save = () => { $$('#tkTb tbody tr[data-id]').forEach(tr => { const x = projById(tr.dataset.id); tr.querySelectorAll('td[data-k]').forEach(td => { const k = td.dataset.k, v = td.textContent.trim(); if (k === 'qh' || k === 'bg') x[k] = v === '' ? null : Number(v.replace(/\./g, '').replace(',', '.')); else if (k === 'ngayCT') { x.ngayCT = v; const m = /(\d{4})\s*$/.exec(v); if (m) x.nam = +m[1]; } else x[k] = v; }); x.loai = [...tr.querySelectorAll('[data-loai]')].filter(c => c.checked).map(c => c.dataset.loai); x.pl = tr.querySelector('[data-pl]').value; }); logH('Sửa số liệu thống kê', 'Bảng chi tiết 28 dự án'); closeModal(); khoiTaoTKFilter(); veThongKe(); toast('Đã cập nhật số liệu.'); };
+    const save = () => { $$('#tkTb tbody tr[data-id]').forEach(tr => { const x = projById(tr.dataset.id); tr.querySelectorAll('td[data-k]').forEach(td => { const k = td.dataset.k, v = td.textContent.trim(); if (k === 'qh' || k === 'bg') x[k] = v === '' ? null : Number(v.replace(/\./g, '').replace(',', '.')); else if (k === 'ngayCT') { x.ngayCT = v; const m = /(\d{4})\s*$/.exec(v); if (m) x.nam = +m[1]; } else x[k] = v; }); x.loai = [...tr.querySelectorAll('[data-loai]')].filter(c => c.checked).map(c => c.dataset.loai); x.pl = tr.querySelector('[data-pl]').value; }); dongBoTT('TK'); logH('Sửa số liệu thống kê', 'Bảng chi tiết thống kê dự án'); closeModal(); khoiTaoTKFilter(); veThongKe(); toast('Đã cập nhật số liệu.'); };
     const ok = huyCapNhat(save);
     let sua = false; const ed = mkBtn(ic('edit') + 'Chỉnh sửa', () => { if (sua) { chiTietTK(); return; } sua = true; $$('#tkTb td[data-k]').forEach(td => td.contentEditable = 'true'); $$('#tkTb [data-loai], #tkTb [data-pl]').forEach(c => c.disabled = false); $('#tkTb').addEventListener('change', ok.mark); ed.innerHTML = ic('x') + 'Hủy chỉnh sửa'; ed.title = 'Bỏ mọi thay đổi chưa lưu'; $('#tkTb').addEventListener('input', ok.mark); });
     foot.push({ slot: 'left', el: ed }, ok);
@@ -1597,27 +1600,53 @@ function keHoachTep(x) {
   if (fs.length > 1) return { loi: 'Chỉ chọn một tệp hồ sơ chính; tệp khác đưa vào phần phụ lục.' };
   return { html: 'Tên tệp sẽ lưu: <b>' + esc(base + '.' + (duoi(fs[0].name) || 'pdf')) + '</b>' };
 }
+/* Kiểm tra trùng hồ sơ trong cùng dự án: xét số văn bản trước, rồi loại, ngày, cơ quan ban hành, người ký; trùng hết là trùng.
+   Văn bản không có số thì so thêm trích yếu (gần đúng vì có thể gõ khác).
+   Trùng hết → không cho tải. Chỉ trùng số → nhắc kiểm tra. */
+const chuanHoa = s => boDau(s).replace(/[^a-z0-9]+/g, '');
+function giongNoiDung(a, b) { const ta = new Set(boDau(a).split(/[^a-z0-9]+/).filter(Boolean)), tb = new Set(boDau(b).split(/[^a-z0-9]+/).filter(Boolean)); if (!ta.size || !tb.size) return false; let chung = 0; ta.forEach(t => { if (tb.has(t)) chung++; }); return chung / Math.min(ta.size, tb.size) >= .8; }
+function kiemTraTrung() {
+  const p = projByName($('#uDa').value), so = $('#uSo').value.trim(), ng = $('#uNgay').value.split('-').map(Number), loai = $('#uLoai').value, cq = $('#uCq').value, nk = $('#uNk').value, nd = lamSachTrichYeu($('#uNd').value);
+  if (!p) return {};
+  const ung = DOCS.filter(d => d.p === p && (so ? chuanHoa(d.so) === chuanHoa(so) : !d.so && d.loai === loai));
+  let gan = null, khacGan = null;
+  for (const d of ung) {
+    const khac = []; if (d.loai !== loai) khac.push('loại văn bản'); if (!(d.y === ng[0] && d.m === ng[1] && d.d === ng[2])) khac.push('ngày'); if (chuanHoa(d.cq) !== chuanHoa(cq)) khac.push('cơ quan ban hành');
+    if (chuanHoa(d.nk) !== chuanHoa(nk)) khac.push('người ký'); if (!so && nd && !giongNoiDung(d.nd, nd)) khac.push('trích yếu'); /* có số: trùng tới người ký là trùng */
+    if (!khac.length && (so || nd)) return { x: d, trung: true };
+    if (so && (!khacGan || khac.length < khacGan.length)) { gan = d; khacGan = khac; }
+  }
+  return gan ? { x: gan, khac: khacGan } : {};
+}
 function xemTruocTen() {
   const ng = $('#uNgay').value.split('-').map(Number), x = { y: ng[0] || 0, m: ng[1] || 0, d: ng[2] || 0, cq: $('#uCq').value, nd: lamSachTrichYeu($('#uNd').value) };
   const k = keHoachTep(x);
   $('#uName').innerHTML = k.loi ? '<span style="color:var(--bad)">' + esc(k.loi) + '</span>' : (x.nd && k.html ? k.html + ($('#uHasPl').checked && $('#uPl').files.length ? ' (phụ lục: … PL1' + ($('#uPl').files.length > 1 ? ' … PL' + $('#uPl').files.length : '') + ')' : '') : '');
-  const p = projByName($('#uDa').value), so = $('#uSo').value.trim();
-  const dup = p && so && DOCS.find(d => d.p === p && boDau(d.so) === boDau(so));
-  $('#uWarn').hidden = !dup; if (dup) $('#uWarn').textContent = 'Số văn bản này đã có trong dự án (' + ngayVN(dup) + ' · ' + dup.nd.slice(0, 60) + '). Kiểm tra lại trước khi tải để tránh trùng.';
+  const tr = kiemTraTrung(); $('#uWarn').hidden = !tr.x; $('#uWarn').classList.toggle('loi', !!tr.trung && !isAdmin());
+  if (tr.x) $('#uWarn').innerHTML = tr.trung && isAdmin() ? '<b>Hồ sơ đã có trên hệ thống.</b> Văn bản ' + esc(tr.x.loai + ' ' + (tr.x.so || '') + ' ngày ' + (ngayVN(tr.x) || '—') + ' · ' + tr.x.nd.slice(0, 80)) + ' (' + esc(tr.x.p.ten) + '). Tài khoản quản lý vẫn tải được: khi bấm Tải hồ sơ sẽ hỏi có ghi vào danh sách hay chỉ lưu tệp vào thư mục.' : tr.trung ? '<b>Hồ sơ đã có trên hệ thống, không tải lên được.</b> Văn bản ' + esc(tr.x.loai + ' ' + (tr.x.so || '') + ' ngày ' + (ngayVN(tr.x) || '—') + ' · ' + tr.x.nd.slice(0, 80)) + ' (' + esc(tr.x.p.ten) + '). Nếu cần sửa thông tin hoặc thay tệp, hãy tìm văn bản này ở Tra cứu và dùng nút Chỉnh sửa (quản lý duyệt).'
+    : 'Số văn bản này đã có trong dự án nhưng khác ' + tr.khac.join(', ') + ' (' + esc(ngayVN(tr.x) + ' · ' + tr.x.nd.slice(0, 60)) + '). Kiểm tra lại trước khi tải.';
   if (/\n/.test($('#uNd').value)) $('#uTxt').textContent = 'Đã tự bỏ các chỗ xuống dòng trong trích yếu.';
 }
 $('#upForm').addEventListener('input', xemTruocTen); $('#uLoai').addEventListener('change', () => { capNhatOTep(); if (cheDoTep() !== 'tt') $('#uNhom').value = '4'; xemTruocTen(); });
 $('#uHasPl').onchange = () => { $('#uPlBox').hidden = !$('#uHasPl').checked; xemTruocTen(); };
-$('#upForm').onsubmit = e => {
-  e.preventDefault();
+$('#upForm').onsubmit = (e, cheDo) => {
+  if (e) e.preventDefault();
   const p = projByName($('#uDa').value), ng = $('#uNgay').value.split('-').map(Number), nd = lamSachTrichYeu($('#uNd').value);
   const thieu = []; if (!p) thieu.push('Dự án'); if (!$('#uLoai').value) thieu.push('Loại văn bản'); if (!ng[0]) thieu.push('Ngày văn bản'); if (!nd) thieu.push('Trích yếu'); if (!$('#uFile').files.length && !(cheDoTep() === 'bc' && $('#uPpt').files.length)) thieu.push(cheDoTep() === 'anh' ? 'Ảnh' : 'Tệp hồ sơ');
   if (thieu.length) { toast('Còn thiếu: ' + thieu.join(', ') + '.'); return; }
+  const trg = kiemTraTrung();
+  if (trg.trung && !isAdmin()) { toast('Hồ sơ đã có trên hệ thống, không tải lên. Cần sửa thì dùng nút Chỉnh sửa ở Tra cứu.'); $('#uWarn').scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+  if (trg.trung && !cheDo) { /* quản lý: chỉ cảnh báo, hỏi cách lưu */
+    openModal('Hồ sơ đã có trên hệ thống', '<p>Đã có văn bản <b>' + esc(trg.x.loai + ' ' + (trg.x.so || '') + ' ngày ' + (ngayVN(trg.x) || '—')) + '</b> · ' + esc(trg.x.nd.slice(0, 100)) + ' (' + esc(trg.x.p.ten) + ').</p><p class="note" style="margin-top:8px"><b>Ghi vào danh sách và lưu tệp:</b> thêm một dòng mới trên trang tính, Tra cứu thấy cả hai văn bản.<br><b>Chỉ lưu tệp vào thư mục:</b> tệp nằm trong thư mục dự án trên Drive, không thêm dòng vào danh sách (dùng khi chỉ cần lưu thêm bản scan, bản ký khác…).</p>',
+      { foot: [mkBtn('Chỉ lưu tệp vào thư mục', () => { closeModal(); $('#upForm').onsubmit(null, 'tep'); }), mkBtn('Ghi vào danh sách và lưu tệp', () => { closeModal(); $('#upForm').onsubmit(null, 'ds'); }, 'p')] });
+    return;
+  }
   const kh = keHoachTep({ y: ng[0], m: ng[1], d: ng[2], cq: $('#uCq').value, nd }); if (kh.loi) { toast(kh.loi); return; }
   const x = { id: 'd' + (docSeq++), p, loai: $('#uLoai').value, so: $('#uSo').value.trim(), nd, y: ng[0], m: ng[1], d: ng[2], cq: $('#uCq').value.trim(), nk: $('#uNk').value.trim(), nhom: +$('#uNhom').value, pl: [], co: [] };
   if ($('#uHasPl').checked) for (let k = 1; k <= $('#uPl').files.length; k++) x.pl.push('PL' + k);
   if (kh.dc) x.dc = kh.dc; if (kh.anh) x.anh = kh.anh;
-  danhCo(x); DOCS.push(x); sapDocs(); lamChiMuc(); logH('Tải hồ sơ lên', p.ten + ' · ' + (x.so || '(chưa có số)') + ' ' + nd.slice(0, 60) + (x.pl.length ? ' · ' + x.pl.length + ' phụ lục' : ''));
+  if (cheDo === 'tep') logH('Tải tệp vào thư mục (không ghi danh sách)', p.ten + ' · ' + (x.so || '(chưa có số)') + ' ' + nd.slice(0, 60) + ' · trùng hồ sơ đã có');
+  else { danhCo(x); DOCS.push(x); sapDocs(); lamChiMuc(); logH('Tải hồ sơ lên', p.ten + ' · ' + (x.so || '(chưa có số)') + ' ' + nd.slice(0, 60) + (x.pl.length ? ' · ' + x.pl.length + ' phụ lục' : '') + (cheDo === 'ds' ? ' · quản lý xác nhận ghi dù trùng' : '')); }
   const ten = x.anh ? tenTep(x).replace(/\.pdf$/, '') + ' (thư mục ' + x.anh + ' ảnh' + ')' : (x.dc ? tenTep(x).replace(/\.pdf$/, '.' + x.dc) : tenTep(x));
   const keepDa = $('#uDa').value; $('#upForm').reset(); $('#uDa').value = keepDa; $('#uPlBox').hidden = true; $('#uName').textContent = ''; $('#uWarn').hidden = true; capNhatOTep();
   $('#uTxt').textContent = 'Đã nhận hồ sơ, đang ghi vào Drive và trang tính ở chế độ chạy ngầm… Bạn nhập tiếp hồ sơ khác được ngay.';
@@ -2011,7 +2040,7 @@ apThuTuTab();
 $('#navEdit').onclick = () => {
   const nav = $('#tabs'), dang = nav.classList.toggle('sx'), nut = $('#navEdit');
   nut.querySelector('span').textContent = dang ? 'Xong' : 'Sắp xếp menu';
-  if (!dang) { THU_TU_TAB = $$('#tabs a').map(a => a.dataset.v); try { localStorage.setItem('cho_menu', JSON.stringify(THU_TU_TAB)); } catch (e) { } logH('Sắp xếp menu', $$('#tabs a').map(a => a.textContent.replace(/\d+$/, '').trim()).join(' → ')); toast('Đã lưu thứ tự menu.'); }
+  if (!dang) { THU_TU_TAB = $$('#tabs a').map(a => a.dataset.v); try { localStorage.setItem('cho_menu', JSON.stringify(THU_TU_TAB)); } catch (e) { } dongBoTT('MENU'); logH('Sắp xếp menu', $$('#tabs a').map(a => a.textContent.replace(/\d+$/, '').trim()).join(' → ')); toast('Đã lưu thứ tự menu.'); }
   else toast('Kéo ⋮⋮ để đổi vị trí các tab, xong bấm "Xong".');
 };
 $('#tabs').addEventListener('click', e => { if ($('#tabs').classList.contains('sx') && e.target.closest('a')) e.preventDefault(); }, true);

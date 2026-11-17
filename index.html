@@ -4,7 +4,7 @@
 <meta name="theme-color" content="#0f6b8a">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Hồ sơ ĐT"><meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="manifest" href="manifest.webmanifest"><link rel="icon" type="image/png" sizes="32x32" href="icon/favicon-32.png"><link rel="icon" type="image/svg+xml" href="icon/favicon.svg"><link rel="apple-touch-icon" href="icon/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest"><link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png"><link rel="icon" type="image/svg+xml" href="favicon.svg"><link rel="apple-touch-icon" href="apple-touch-icon.png">
 <script src="cau-hinh.js"></script>
 <meta charset="utf-8">
 <title>Cổng hồ sơ đầu tư</title>
@@ -154,6 +154,7 @@ button.i.ip{background:var(--brand);border-color:var(--brand);color:var(--brand-
 .acctmenu .am-h{padding:8px 10px 10px;border-bottom:1px solid var(--line);margin-bottom:4px;display:flex;flex-direction:column;gap:2px}.acctmenu .am-h b{word-break:break-all}.acctmenu .am-h span{color:var(--mute);font-size:12px}
 .acctmenu button{justify-content:flex-start;border:0;background:transparent;height:38px;padding:0 10px;border-radius:8px}.acctmenu button:hover{background:var(--soft)}#btnOut{color:var(--bad)}
 .pvbar{position:fixed;right:max(10px,env(safe-area-inset-right,0px));bottom:max(10px,env(safe-area-inset-bottom,0px));z-index:90;display:flex;align-items:center;gap:6px;padding:4px 4px 4px 10px;border-radius:999px;background:var(--warn-bg);color:var(--warn);font-size:11.5px;border:1px dashed var(--warn);opacity:.92}
+body:has(#modal:not([hidden])) .pvbar{display:none}
 .pvbar select{height:26px!important;padding:0 22px 0 8px!important;font-size:12px;width:auto;border-radius:999px}
 @media(max-width:640px){#acctBtn .em{display:none}#acctBtn{padding-right:8px}.acct{margin-left:auto}header{flex-wrap:nowrap;align-items:center}.brandbox{flex:1 1 auto!important}}
 .pager{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:8px;font-size:12.5px;color:var(--mute)}

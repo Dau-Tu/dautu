@@ -905,13 +905,13 @@ let BD_CHUNG = { SAVED: [], KIEU: {} };
 let CAPDA = [];   // cán bộ được cập nhật tab Quản lý dự án (thay đổi gửi admin duyệt)
 const suaDA = () => isAdmin() || ((ROLE === 'staff' || ROLE === 'leader') && (CAPDA.includes(ME()) || window.CO_QUYEN_DA === true));
 const deXuatDA = () => !isAdmin() && suaDA();
-const ME = () => LIVE ? TOI.email : ({ admin: 'dtxd_fu@greenwich.edu.vn', leader: 'truongban.dt@fpt.edu.vn', staff: 'nguyenvana@fpt.edu.vn', guest: 'doitac.ngoai@gmail.com' })[ROLE];
+const ME = () => LIVE ? TOI.email : ({ admin: 'admin.mau@vi-du.vn', leader: 'truongban.dt@fpt.edu.vn', staff: 'nguyenvana@fpt.edu.vn', guest: 'doitac.ngoai@gmail.com' })[ROLE];
 /* Xuất file: khách không được xuất; mọi tài khoản còn lại (kể cả admin) xuất kèm dấu bản quyền */
 const laKhach = () => ROLE === 'guest', canDau = () => !laKhach(), DAU_BQ = 'Ban Đầu tư & Xây dựng FPT Edu';
 const dongDau = () => '© ' + DAU_BQ + ' · ' + ME() + ' · ' + new Date().toLocaleString('vi-VN');
 function taiXuat(ten, kieu, dau) { if (laKhach()) { toast('Tài khoản khách không dùng được tính năng xuất file.'); return Promise.resolve(false); } return xuatBang(ten, kieu, dau); }
 const laLanhDao = em => LEADERS.includes(em);
-let TEN_HIEN = LIVE ? {} : { 'dtxd_fu@greenwich.edu.vn': 'Phòng Đầu tư' };   // tên hiển thị thay cho email (khóa TEN_HIEN ở HT_CauHinh)
+let TEN_HIEN = LIVE ? {} : { 'admin.mau@vi-du.vn': 'Phòng Đầu tư' };   // tên hiển thị thay cho email (khóa TEN_HIEN ở HT_CauHinh)
 const tenTK = em => TEN_HIEN[String(em || '').toLowerCase()] || em;
 const VUNG = ['Miền Bắc', 'Miền Trung', 'Miền Nam'];
 const TINH_LIST = ['Lai Châu','Lào Cai','Điện Biên','Cao Bằng','Tuyên Quang','Lạng Sơn','Thái Nguyên','Sơn La','Phú Thọ','Quảng Ninh','Bắc Ninh','Hà Nội','Hải Phòng','Hưng Yên','Ninh Bình','Thanh Hóa','Nghệ An','Hà Tĩnh','Quảng Trị','Huế','Đà Nẵng','Quảng Ngãi','Gia Lai','Đắk Lắk','Khánh Hòa','Lâm Đồng','Đồng Nai','Tây Ninh','HCM','Đồng Tháp','Vĩnh Long','An Giang','Cần Thơ','Cà Mau']; /* 34 tỉnh, xếp Bắc → Nam */
@@ -995,13 +995,13 @@ const sapDocs = () => DOCS.sort((a, b) => khoaNgay(b) - khoaNgay(a) || a.id.loca
 sapDocs();
 let CHIMUC = []; const lamChiMuc = () => { CHIMUC = DOCS.map(x => taoMuc({ id: x.p.id, ten: x.p.ten, tinh: x.p.tinh }, { loai: x.loai, so: x.so, nd: x.nd, cq: x.cq, nky: x.nk, gc: '', y: x.y, d: x.d, m: x.m })); }; lamChiMuc();
 
-let KHACH = LIVE ? [] : ['doitac.tuvan@gmail.com'], ADMINS = ['dtxd_fu@greenwich.edu.vn', 'daicv5@fpt.edu.vn'], EDITORS = ['tiendo.da@fpt.edu.vn'], LEADERS = ['truongban.dt@fpt.edu.vn'], CB_DOM = ['fpt.edu.vn', 'fe.edu.vn'], CANBO = ['tranthib@gmail.com'];
+let KHACH = LIVE ? [] : ['doitac.tuvan@gmail.com'], ADMINS = ['admin.mau@vi-du.vn', 'canbo.mau@vi-du.vn'], EDITORS = ['tiendo.da@fpt.edu.vn'], LEADERS = ['truongban.dt@fpt.edu.vn'], CB_DOM = ['fpt.edu.vn', 'fe.edu.vn'], CANBO = ['tranthib@gmail.com'];
 if (!LIVE) CAPDA = ['nguyenvana@fpt.edu.vn'];
 /* Vai trò khi đăng nhập: quản lý > lãnh đạo > cán bộ (theo email hoặc tên miền) > khách */
 const vaiTroCua = em => { em = String(em).trim().toLowerCase(); return ADMINS.includes(em) ? 'Admin' : LEADERS.includes(em) ? 'Lãnh đạo' : CANBO.includes(em) || CB_DOM.includes(em.split('@')[1]) ? 'Cán bộ' : KHACH.includes(em) ? 'Khách' : 'Không được vào'; };
 const HIST = []; const logH = (tt, nd, em, kp) => HIST.unshift({ t: new Date(), em: em || ME(), tt, nd, kp }); /* kp: dữ liệu cũ để quản lý khôi phục */
 const chupVB = x => ({ loai: 'doc', id: x.id, cu: { p: x.p, loai: x.loai, so: x.so, nd: x.nd, cq: x.cq, nk: x.nk, nhom: x.nhom, d: x.d, m: x.m, y: x.y } });
-if (!LIVE) (function () { const acts = [['Tải hồ sơ lên', 'nguyenvana@fpt.edu.vn'], ['Bổ sung phụ lục', 'tranthib@gmail.com'], ['Sửa thông tin văn bản', 'dtxd_fu@greenwich.edu.vn'], ['Tải hồ sơ lên', 'daicv5@fpt.edu.vn'], ['Cấp quyền xem', 'dtxd_fu@greenwich.edu.vn'], ['Cập nhật tiến độ', 'tiendo.da@fpt.edu.vn']];
+if (!LIVE) (function () { const acts = [['Tải hồ sơ lên', 'nguyenvana@fpt.edu.vn'], ['Bổ sung phụ lục', 'tranthib@gmail.com'], ['Sửa thông tin văn bản', 'admin.mau@vi-du.vn'], ['Tải hồ sơ lên', 'canbo.mau@vi-du.vn'], ['Cấp quyền xem', 'admin.mau@vi-du.vn'], ['Cập nhật tiến độ', 'tiendo.da@fpt.edu.vn']];
   for (let i = 0; i < 140; i++) { const a = acts[Math.floor(rnd() * acts.length)], x = DOCS[Math.floor(rnd() * DOCS.length)]; HIST.push({ t: new Date(NOW - Math.floor(rnd() * 75 * 864e5)), em: a[1], tt: a[0], nd: x.p.ten + ' · ' + (x.so || '(chưa có số)') + ' ' + x.nd.slice(0, 50), docId: x.id }); }
   HIST.forEach(h => { const x = DOCS.find(d => d.id === h.docId);
     if (h.tt === 'Sửa thông tin văn bản' && x) { const kp = chupVB(x); kp.cu = Object.assign({}, kp.cu, { so: x.so ? x.so.replace(/^\d+/, m => +m - 1) : '1/QĐ', nk: x.nk || 'Nguyễn Văn Châu' }); h.kp = kp; }
@@ -1012,7 +1012,7 @@ if (!LIVE) (function () { const d1 = DOCS[3], d2 = DOCS[9];
   REQS.push({ id: 'r1', docId: d1.id, em: 'nguyenvana@fpt.edu.vn', t: new Date(NOW - 3600e3 * 5), st: 'cho', doi: { so: [d1.so, d1.so ? d1.so.replace(/^\d+/, m => +m + 1) : '125/QĐ-UBND'], nk: [d1.nk, 'Nguyễn Văn Châu'] }, ver: '', pl: 1 });
   REQS.push({ id: 'r0', kind: 'da', em: 'nguyenvana@fpt.edu.vn', t: new Date(NOW - 3600e3 * 2), st: 'cho', doi: {}, pl: 0, dong: ['Thông tin dự án Hà Nội - FU Hòa Lạc: Quy mô "(mẫu) 15.000 sinh viên" → "16.000 sinh viên"', 'Số liệu thống kê: Hà Nội - FU Hòa Lạc'] });
   REQS.push({ id: 'r2', docId: d2.id, em: 'tranthib@gmail.com', t: new Date(NOW - 3600e3 * 26), st: 'cho', doi: { nhom: [d2.nhom, 1] }, ver: d2.so ? 'ban-ky-dong-dau.pdf' : '', pl: 0 });
-  REQS.push({ id: 'r3', docId: DOCS[15].id, em: 'nguyenvana@fpt.edu.vn', t: new Date(NOW - 864e5 * 3), st: 'tuchoi', ly: 'Số văn bản đúng như bản gốc, không cần sửa.', by: 'dtxd_fu@greenwich.edu.vn', doi: { so: [DOCS[15].so, '999/TB'] }, ver: '', pl: 0 }); })();
+  REQS.push({ id: 'r3', docId: DOCS[15].id, em: 'nguyenvana@fpt.edu.vn', t: new Date(NOW - 864e5 * 3), st: 'tuchoi', ly: 'Số văn bản đúng như bản gốc, không cần sửa.', by: 'admin.mau@vi-du.vn', doi: { so: [DOCS[15].so, '999/TB'] }, ver: '', pl: 0 }); })();
 const SHARES = [];
 if (!LIVE) (function () { const ems = ['nguyenvana@fpt.edu.vn', 'tranthib@gmail.com', 'phongphaply@fpt.edu.vn', 'doitac.tuvan@gmail.com', 'lehoang@fpt.edu.vn'];
   SHARES.push({ em: ems[2], path: 'A. Dau tu FE / 1. Mien Bac', kieu: 'Thư mục', role: 'Người xem', src: 'Drive' });
@@ -3076,7 +3076,7 @@ $('#ldList').onclick = e => { const v = e.target.dataset.rm; if (!v) return; LEA
 function veKhach() { $('#khList').innerHTML = az(KHACH).map(a => '<div class="btns" style="justify-content:space-between;border-bottom:1px solid var(--line);padding:6px 0"><span>' + esc(a) + '</span><button class="d s" data-rm="' + esc(a) + '">Bỏ quyền</button></div>').join('') || '<p class="note">Chưa có tài khoản khách.</p>'; }
 $('#khAdd').onclick = () => { const v = $('#khNew').value.trim().toLowerCase(); if (!/^\S+@\S+\.\S+$/.test(v)) { toast('Email chưa hợp lệ.'); return; } if (!KHACH.includes(v)) KHACH.push(v); logH('Thêm tài khoản khách', v); $('#khNew').value = ''; veKhach(); };
 $('#khList').onclick = e => { const v = e.target.dataset.rm; if (!v) return; KHACH = KHACH.filter(a => a !== v); logH('Bỏ tài khoản khách', v); veKhach(); };
-function veAdmins() { $('#admList').innerHTML = az(ADMINS).map(a => '<div class="btns" style="justify-content:space-between;border-bottom:1px solid var(--line);padding:6px 0"><span>' + esc(a) + '</span>' + (a === 'dtxd_fu@greenwich.edu.vn' ? '<span class="note">Chủ hệ thống</span>' : '<button class="d s" data-rm="' + esc(a) + '">Xóa quyền</button>') + '</div>').join(''); }
+function veAdmins() { $('#admList').innerHTML = az(ADMINS).map(a => '<div class="btns" style="justify-content:space-between;border-bottom:1px solid var(--line);padding:6px 0"><span>' + esc(a) + '</span>' + (a === 'admin.mau@vi-du.vn' ? '<span class="note">Chủ hệ thống</span>' : '<button class="d s" data-rm="' + esc(a) + '">Xóa quyền</button>') + '</div>').join(''); }
 $('#admAdd').onclick = () => { const v = $('#admNew').value.trim().toLowerCase(); if (!/^\S+@\S+\.\S+$/.test(v)) { toast('Email chưa hợp lệ.'); return; } if (!ADMINS.includes(v)) ADMINS.push(v); logH('Cấp quyền admin', v); $('#admNew').value = ''; veAdmins(); };
 $('#admList').onclick = e => { const v = e.target.dataset.rm; if (!v) return; ADMINS = ADMINS.filter(a => a !== v); logH('Xóa quyền quản lý', v); veAdmins(); };
 
